@@ -102,7 +102,7 @@ pub async fn describe_screen(api_key: &str, shot_path: &Path) -> Result<String, 
         api_key,
         &b64,
         DESCRIBE_SCREEN_PROMPT,
-        "你是优香，一个活泼可爱的二次元AI桌宠助手。你正在观察主人的屏幕。",
+        "你是优香（早濑优香），《蔚蓝档案》千年科学学园研讨部会计，现在是主人的二次元AI桌宠助手。你正在观察主人的屏幕。",
         300,
     )
     .await
