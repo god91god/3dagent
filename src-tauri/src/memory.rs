@@ -523,32 +523,87 @@ impl MemoryStore {
     // ---------- 近期对话 ----------
 
     /// 追加一轮对话（user + assistant），保持最近 MAX_RECENT 轮
-    pub fn append_recent(&self, role: &str, content: &str) -> Result<(), String> {
+    /// 结构: {summary: "过去对话备忘录", messages: [最近 N 条]}
+    /// 超过 MAX_RECENT 时返回应压缩的旧消息（None = 无需压缩），
+    /// 由调用方后台调 LLM 压成摘要再 merge_recent_summary 落盘（压缩在锁外跑，抄 N.E.K.O.）
+    pub fn append_recent(&self, role: &str, content: &str) -> Result<Option<Vec<Value>>, String> {
         const MAX_RECENT: usize = 20;
+        const KEEP_AFTER_COMPRESS: usize = 10;
         let _g = self.global_lock();
 
-        let mut recent = self.read_json(&self.recent_path(), json!([]));
-        let arr = recent.as_array_mut().ok_or("recent.json 不是数组")?;
+        let recent = self.read_json(&self.recent_path(), json!({"summary": "", "messages": []}));
+        let summary = recent.get("summary").and_then(|s| s.as_str()).unwrap_or("").to_string();
+        let mut arr = recent
+            .get("messages")
+            .and_then(|m| m.as_array())
+            .cloned()
+            .unwrap_or_default();
         arr.push(json!({
             "role": role,
             "content": content,
             "ts": chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         }));
-        // 只保留最近 MAX_RECENT 条
-        let len = arr.len();
-        if len > MAX_RECENT {
-            *arr = arr[len - MAX_RECENT..].to_vec();
-        }
+
+        // 超过阈值 → 最旧的 (len - KEEP_AFTER_COMPRESS) 条交给 LLM 压缩
+        let to_compress: Option<Vec<Value>> = if arr.len() > MAX_RECENT {
+            let cut = arr.len() - KEEP_AFTER_COMPRESS;
+            let old: Vec<Value> = arr[..cut].to_vec();
+            arr.drain(..cut);
+            Some(old)
+        } else {
+            None
+        };
+
         self.atomic_write(
             &self.recent_path(),
-            &serde_json::to_string_pretty(&recent).map_err(|e| e.to_string())?,
+            &serde_json::to_string_pretty(&json!({
+                "summary": summary,
+                "messages": arr,
+            }))
+            .map_err(|e| e.to_string())?,
+        )?;
+        Ok(to_compress)
+    }
+
+    /// 把 LLM 压缩出的历史摘要合并进 recent.json（压缩在后台跑完调用）
+    /// 新摘要 = 旧摘要 + 本轮压缩文本（带时间标签）
+    pub fn merge_recent_summary(&self, new_summary: &str) -> Result<(), String> {
+        let _g = self.global_lock();
+        let recent = self.read_json(&self.recent_path(), json!({"summary": "", "messages": []}));
+        let old_summary = recent.get("summary").and_then(|s| s.as_str()).unwrap_or("").to_string();
+        let arr = recent
+            .get("messages")
+            .and_then(|m| m.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let merged = if old_summary.trim().is_empty() {
+            new_summary.to_string()
+        } else {
+            format!("{}\n{}", old_summary.trim(), new_summary.trim())
+        };
+        self.atomic_write(
+            &self.recent_path(),
+            &serde_json::to_string_pretty(&json!({
+                "summary": merged,
+                "messages": arr,
+            }))
+            .map_err(|e| e.to_string())?,
         )
+    }
+
+    /// 读取近期对话摘要（过去对话备忘录）
+    pub fn get_recent_summary(&self) -> String {
+        let v = self.read_json(&self.recent_path(), json!({"summary": "", "messages": []}));
+        v.get("summary").and_then(|s| s.as_str()).unwrap_or("").to_string()
     }
 
     /// 读取近期对话（返回 [{role, content, ts}...] 数组）
     pub fn get_recent(&self) -> Vec<Value> {
-        let v = self.read_json(&self.recent_path(), json!([]));
-        v.as_array().cloned().unwrap_or_default()
+        let v = self.read_json(&self.recent_path(), json!({"summary": "", "messages": []}));
+        v.get("messages")
+            .and_then(|m| m.as_array())
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// 读取近期对话纯文本（用于事实提取的 CONVERSATION 输入）
@@ -1072,9 +1127,44 @@ mod tests {
         for i in 0..30 {
             s.append_recent("user", &format!("消息{}", i)).unwrap();
         }
+        // 触发逻辑：消息 > 20 才压缩到 10 条，然后自然累积到 21 再压。
+        // 30 条循环只在第 21 条时触发一次（保留消息11~20），之后 9 条继续加 → 19 条
         let recent = s.get_recent();
-        assert_eq!(recent.len(), 20); // 只保留最近 20 条
-        assert!(recent[0].get("content").unwrap().as_str().unwrap().starts_with("消息10"));
+        assert_eq!(recent.len(), 19);
+        assert!(recent[0].get("content").unwrap().as_str().unwrap().starts_with("消息11"));
+    }
+
+    #[test]
+    fn test_recent_compress_return() {
+        let s = tmp_store();
+        // 21 条以内：不触发压缩
+        for i in 0..20 {
+            let r = s.append_recent("user", &format!("消息{}", i)).unwrap();
+            assert!(r.is_none(), "20 条以内不应压缩");
+        }
+        assert_eq!(s.get_recent().len(), 20);
+        // 第 21 条：触发，返回最旧 11 条待压缩，保留最近 10 条
+        let to_compress = s.append_recent("user", "消息21").unwrap();
+        assert!(to_compress.is_some());
+        assert_eq!(to_compress.unwrap().len(), 11);
+        assert_eq!(s.get_recent().len(), 10);
+        // summary 为空（压缩是异步的，同步测试不触发 LLM）
+        assert_eq!(s.get_recent_summary(), "");
+    }
+
+    #[test]
+    fn test_recent_summary_merge() {
+        let s = tmp_store();
+        s.append_recent("user", "第一条").unwrap();
+        s.merge_recent_summary("主人提到了喜欢喝咖啡，下周有面试").unwrap();
+        assert!(s.get_recent_summary().contains("咖啡"));
+        // 二次合并追加
+        s.merge_recent_summary("还约了周末去图书馆").unwrap();
+        let summary = s.get_recent_summary();
+        assert!(summary.contains("咖啡"));
+        assert!(summary.contains("图书馆"));
+        // 消息不受影响
+        assert_eq!(s.get_recent().len(), 1);
     }
 
     #[test]

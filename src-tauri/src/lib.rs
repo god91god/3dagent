@@ -6,6 +6,7 @@ use tauri::{Emitter, Manager};
 
 mod activity;
 mod memory;
+mod memory_compress;
 mod memory_extract;
 mod memory_prompts;
 mod memory_reflect;
@@ -353,6 +354,13 @@ async fn llm_chat(
     if !mem_ctx.is_empty() {
         sys.push_str("\n\n");
         sys.push_str(&mem_ctx);
+    }
+    // 注入"过去对话备忘录"（近期对话压缩摘要，抄 N.E.K.O. compress_history）：
+    // 旧对话被压缩后的记忆，让优香记得"之前聊过什么"，不用全量塞旧消息
+    let recent_summary = state.memory.get_recent_summary();
+    if !recent_summary.trim().is_empty() {
+        sys.push_str("\n\n【过去对话备忘录】\n");
+        sys.push_str(recent_summary.trim());
     }
 
     let mut full_messages: Vec<serde_json::Value> = Vec::new();
@@ -802,7 +810,27 @@ async fn memory_append_turn(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let store = &state.memory;
-    store.append_recent(&role, &content)?;
+    // append_recent 超过阈值时返回应压缩的旧消息（None = 无需压缩）
+    let to_compress = store.append_recent(&role, &content)?;
+
+    // 近期对话压缩（抄 N.E.K.O. CompressedRecentHistoryManager）：
+    // 旧消息超阈值 → 后台 LLM 压成摘要合并进 recent.json（压缩耗时，放后台不阻塞）
+    if let Some(old_msgs) = to_compress {
+        let c_key = get_qwen_api_key().unwrap_or_default();
+        if !c_key.is_empty() {
+            let c_dir = store.dir();
+            tauri::async_runtime::spawn(async move {
+                let store = MemoryStore::new(c_dir);
+                match crate::memory_compress::compress_and_merge(&store, &c_key, &old_msgs).await {
+                    Ok(Some(s)) => {
+                        eprintln!("[memory] 近期对话压缩: {} 条 → 摘要 {} 字", old_msgs.len(), s.chars().count());
+                    }
+                    Ok(None) => {}
+                    Err(e) => eprintln!("[memory] 对话压缩失败（保留原文）: {}", e),
+                }
+            });
+        }
+    }
 
     // 话题深池信号（用户/AI 轮次都入池，用户轮同时触发回应窗口升级）
     state.topic.note_turn(&role, &content);
