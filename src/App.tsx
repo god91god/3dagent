@@ -82,6 +82,25 @@ function App() {
     const next = mode === "chat" ? "task" : "chat";
     setMode(next);
     modeRef.current = next;
+    // ===== 模式切换历史边界（修复：切回聊天后 LLM 被任务历史带偏，把闲聊误判成任务）=====
+    // 往短期记忆插一条 system 消息，告诉 LLM 模式已切换、之前的任务是过去式
+    if (next === "chat") {
+      chatHistoryRef.current.push({
+        role: "system",
+        content:
+          "【模式切换】已从任务模式切回聊天模式。之前的文件/电脑操作任务已经结束，用户接下来说的都是闲聊话题，不是任务指令。请正常聊天，不要执行任何文件/界面操作。",
+      });
+    } else {
+      chatHistoryRef.current.push({
+        role: "system",
+        content: "【模式切换】已切到任务模式。用户接下来说的话是要执行的任务（文件/命令→DSH，界面操作→电脑操控）。请判断任务意图。",
+      });
+    }
+    // 历史太长会挤掉边界消息，保持窗口内
+    const maxLen = 24;
+    if (chatHistoryRef.current.length > maxLen) {
+      chatHistoryRef.current.splice(0, chatHistoryRef.current.length - maxLen);
+    }
     setStatus(next === "task" ? "🎮 任务模式：输入任务指令（文件/命令→DSH，界面操作→电脑操控）" : "💬 聊天模式（点 💼 切换任务模式）");
     if (vrmRef.current) applyEmotion(vrmRef.current, next === "task" ? "happy" : "neutral");
   }
@@ -328,9 +347,15 @@ function App() {
       const messages = chatHistoryRef.current.slice(-MAX_HISTORY); // 带历史上下文
       // 用户回复时注入优香主动搭话时看的截图（N.E.K.O. leading-image 机制，60s TTL）
       const proactiveShot = await invoke<string | null>("proactive_shot_take").catch(() => null);
+      // ===== 当前模式注入（修复：模式切换后 LLM 不知道当前模式，被历史带偏误判任务）=====
+      // 动态拼 system：人设 + 意图指令 + 当前模式声明，让 LLM 明确"现在该干嘛"
+      const modeDecl =
+        modeRef.current === "task"
+          ? "【当前模式：任务模式】用户接下来输入的是要执行的任务（文件/命令→task，界面操作→gui）。注意：模式切换消息提示了任务边界，如果用户明显在闲聊（心情/日常/问候），仍然按 chat 处理，不要硬套任务。"
+          : "【当前模式：聊天模式】用户接下来输入的是闲聊内容，不要输出 task/gui（除非用户明确再次下达任务指令）。之前的任务即使出现在历史里也已结束。";
       const raw = await invoke<string>("llm_chat", {
         messages,
-        system: SYSTEM_PROMPT,
+        system: SYSTEM_PROMPT + "\n\n" + modeDecl,
         jsonMode: true,
         imagePath: proactiveShot ?? undefined,
       });

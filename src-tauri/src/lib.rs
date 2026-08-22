@@ -376,7 +376,17 @@ async fn llm_chat(
     if !sys.trim().is_empty() {
         full_messages.push(serde_json::json!({"role": "system", "content": sys}));
     }
+    // 历史里的 system 消息（模式切换边界提示）：
+    // dashscope 兼容端点只认首条 system，中间的 system 会 400 —— 转成 user 前缀，
+    // 语义等价（都是"告诉模型发生了什么"），且对后续消息无污染
     for m in messages {
+        if m["role"] == "system" {
+            let content = m["content"].as_str().unwrap_or("").to_string();
+            if !content.trim().is_empty() {
+                full_messages.push(serde_json::json!({"role": "user", "content": content}));
+            }
+            continue;
+        }
         full_messages.push(m);
     }
 
