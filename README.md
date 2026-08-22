@@ -61,12 +61,14 @@ pnpm tauri build --no-bundle   # 产物: src-tauri/target/release/dagent.exe
   "chat_model": "qwen3.6-flash",      // 聊天/意图/事实提取/压缩/搭话（便宜模型走这里）
   "vision_model": "qwen3-vl-plus",    // 视觉模型（识图/电脑操控）
   "memory_model": "qwen-max",         // 记忆高智力任务（去重仲裁/反思合成/信号检测/话题筛选）
-  "tts_model": "qwen3-tts-flash-realtime-2025-11-27",
-  "tts_voice": "Cherry"
+  "tts_model": "qwen3-tts-vd-realtime-2026-01-15",   // TTS：vd 版（voice-design 音色，1 元/万字符）
+  "tts_voice": "qwen-tts-vd-yuuka_pet-voice-..."      // 音色 ID：qwen-voice-design 创建的自定义音色
 }
 ```
 
 模型分级：`chat_model`（省 token 的日常任务）与 `memory_model`（记忆质量命门的强模型）分离；换模型只改 `config.json` 对应字段。
+
+**TTS 音色定制**：`qwen3-tts-vd-realtime` 无内置音色，需先用 qwen-voice-design 创建（POST `https://dashscope.aliyuncs.com/api/v1/services/audio/tts/customization`，`action: "create"`，传 `voice_prompt` 文字描述 + `target_model`，返回 `output.voice` 即音色 ID）→ 填入 `tts_voice`。
 
 ## 🧠 记忆系统（借鉴 N.E.K.O.）
 
