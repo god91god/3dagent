@@ -1147,7 +1147,17 @@ function App() {
           lipSyncRef.current?.update();
         } else {
           // 口型同步写 viseme 权重（A2F 未激活时的 fallback）
-          lipSyncRef.current?.update();
+          // 关键修复：音频播完后 AudioWorklet 权重会冻结在最后非零值，
+          // 无条件 update() 会让 wasSpeaking 持续为 true → 嘴一直张着。
+          // 用 currentSource（播完自动置 null）判断：没在播放就跳过 update 并强制闭嘴。
+          const lip = lipSyncRef.current;
+          if (lip) {
+            if (lip.currentSource || speakingRef.current) {
+              lip.update();
+            } else {
+              lip.reset(); // 没在播放 → 清零 viseme 闭口（防残留权重）
+            }
+          }
         }
         // ===== Mixamo idle 动画 + 手势叠加（顺序关键）=====
         // mixer 先写 normalized（动画姿势）→ 手势在 normalized 上叠加头部/手臂
