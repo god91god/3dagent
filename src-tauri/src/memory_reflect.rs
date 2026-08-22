@@ -15,9 +15,10 @@ use crate::memory_prompts::{REFLECTION_PROMPT, SIGNAL_DETECTION_PROMPT};
 
 /// 一次 qwen LLM 调用（JSON 模式），返回原始文本
 /// 后台重任务（反思/信号检测），用长超时 Client（共享 60s 对长 prompt 不够）
+/// 反思合成/信号检测是记忆质量命门：用 memory_model（qwen-max），不用聊天模型
 async fn llm_json_call(prompt: &str, api_key: &str) -> Result<String, String> {
     let body = serde_json::json!({
-        "model": crate::chat_model(),
+        "model": crate::memory_model(),
         "messages": [{"role": "user", "content": prompt}],
         "stream": false,
         "response_format": {"type": "json_object"}

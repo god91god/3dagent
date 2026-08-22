@@ -58,14 +58,15 @@ pnpm tauri build --no-bundle   # 产物: src-tauri/target/release/dagent.exe
 ```jsonc
 {
   "qianwen_api_key": "sk-...",        // 阿里云百炼 API key（对话/视觉/TTS/记忆全链路）
-  "chat_model": "qwen-max",           // 对话/记忆/搭话模型（可换 qwen3.7-plus 等）
+  "chat_model": "qwen3.6-flash",      // 聊天/意图/事实提取/压缩/搭话（便宜模型走这里）
   "vision_model": "qwen3-vl-plus",    // 视觉模型（识图/电脑操控）
+  "memory_model": "qwen-max",         // 记忆高智力任务（去重仲裁/反思合成/信号检测/话题筛选）
   "tts_model": "qwen3-tts-flash-realtime-2025-11-27",
   "tts_voice": "Cherry"
 }
 ```
 
-模型集中配置在 `config.json`，换模型只改这一个文件（聊天/记忆/搭话用 `chat_model`，识图/操控用 `vision_model`）。
+模型分级：`chat_model`（省 token 的日常任务）与 `memory_model`（记忆质量命门的强模型）分离；换模型只改 `config.json` 对应字段。
 
 ## 🧠 记忆系统（借鉴 N.E.K.O.）
 

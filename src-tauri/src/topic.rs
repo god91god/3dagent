@@ -574,7 +574,8 @@ pub async fn collect_topic_candidates(
     let prompt = TOPIC_CANDIDATE_PROMPT.replace("{GLOBAL_SIGNALS}", signals_text);
 
     let body = serde_json::json!({
-        "model": crate::chat_model(),
+        // 话题筛选要 relevance/risk 判断力：用 memory_model（qwen-max）
+        "model": crate::memory_model(),
         "messages": [
             {"role": "system", "content": "你是话题筛选助手，只输出 JSON。"},
             {"role": "user", "content": prompt}

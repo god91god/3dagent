@@ -53,6 +53,10 @@ pub fn long_timeout_client() -> Result<reqwest::Client, String> {
 pub const CHAT_MODEL_DEFAULT: &str = "qwen3.6-plus";
 /// 视觉模型默认值（config.json 的 vision_model 字段可覆盖）
 pub const VISION_MODEL_DEFAULT: &str = "qwen3-vl-plus";
+/// 记忆高智力任务模型默认值（config.json 的 memory_model 字段可覆盖）
+/// 用于去重仲裁/反思合成/信号检测/话题筛选——这些是记忆质量命门，
+/// 用强模型（qwen-max），token 量小不心疼；聊天/提取/压缩走便宜的 flash
+pub const MEMORY_MODEL_DEFAULT: &str = "qwen-max";
 
 /// 从 config.json 读模型配置（方便随时换模型，不用改代码）
 /// key: config.json 字段名；default: 字段缺失/为空时的缺省值
@@ -71,9 +75,14 @@ pub fn model_cfg(key: &str, default: &str) -> String {
     default.to_string()
 }
 
-/// 当前聊天模型（对话/事实提取/反思/搭话/话题/activity_guess）
+/// 当前聊天模型（对话/意图分类/事实提取/压缩/搭话/activity_guess/识图叙述）
 pub fn chat_model() -> String {
     model_cfg("chat_model", CHAT_MODEL_DEFAULT)
+}
+
+/// 当前记忆高智力模型（去重仲裁/反思合成/信号检测/话题筛选——记忆质量命门）
+pub fn memory_model() -> String {
+    model_cfg("memory_model", MEMORY_MODEL_DEFAULT)
 }
 
 /// 当前视觉模型（识图/定位/多模态聊天，必须支持看图）

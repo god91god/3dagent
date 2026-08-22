@@ -879,7 +879,8 @@ impl MemoryStore {
             .replace("{PAIRS}", &pairs_text.join("\n"));
 
         let body = serde_json::json!({
-            "model": crate::chat_model(),
+            // 去重仲裁是记忆质量命门：用 memory_model（qwen-max），不用聊天模型
+            "model": crate::memory_model(),
             "messages": [{"role": "user", "content": prompt}],
             "stream": false,
             "response_format": {"type": "json_object"}
