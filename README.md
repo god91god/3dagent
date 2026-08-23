@@ -4,6 +4,8 @@
 
 > **Tauri 2 + React 19 + three.js + three-vrm + Rust 后端**
 
+> 🤖 **不想看文档？** 把 [AI_SETUP_GUIDE.md](AI_SETUP_GUIDE.md) 全文丢给你的 AI 助手（Claude/ChatGPT/DeepSeek 等），它会一步步帮你装好。
+
 ## ✨ 功能总览
 
 | 能力 | 说明 |
