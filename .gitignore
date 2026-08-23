@@ -32,3 +32,7 @@ src-tauri/target/
 # æ¨¡å‹èµ„äº§ï¼šåªæäº¤ä¸»åŠ›ï¼ˆä¼˜é¦™_new.vrmï¼‰ï¼Œå¤‡ä»½/å¤‡èƒæ¨¡å‹ä¸å…¥åº“ï¼ˆä½“ç§¯å¤§ï¼‰
 public/models/*.vrm
 !public/models/ä¼˜é¦™_new.vrm
+
+# ±¾µØÊÔÌıÒôÆµ£¨TTS ÒôÉ«µ÷ÊÔÓÃ£©
+yuuka_voice_preview*.wav
+yuuka_voice_test*.mp3
