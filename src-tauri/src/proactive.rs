@@ -223,6 +223,13 @@ impl ProactiveState {
         self.on_delivery_made();
     }
 
+    /// 生成任务开始前的"占位"：立即更新冷却，防止异步生成期间（截图+LLM 5-15s）
+    /// 下一个 20s tick 重复放行 → 同一次搭话触发两次（用户实测 bug）
+    /// 只更新 last_speak_at 冷却，不动历史/退避（那些等真正投递成功再记）
+    pub fn mark_speaking(&self) {
+        *self.last_speak_at.lock().unwrap() = now_secs();
+    }
+
     /// 防复读：与历史文本相似度 ≥ 阈值 → 拦截
     pub fn is_repeat(&self, text: &str) -> bool {
         let h = self.history.lock().unwrap();

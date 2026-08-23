@@ -1162,6 +1162,9 @@ pub fn run() {
                     let is_reminder = is_reminder;
                     // 3-tier 退避语气层：级别 ≥1 时生成克制文案（主人多次没回应）
                     let restrained = state.proactive.current_backoff_level() >= 1;
+                    // 生成前立即占位冷却：生成任务异步（截图+LLM 5-15s），
+                    // 若等任务完成才更新 last_speak_at，下一个 20s tick 会重复放行 → 搭话触发两次
+                    state.proactive.mark_speaking();
                     let store = MemoryStore::new(handle.path().app_data_dir().unwrap_or_else(|_| std::env::temp_dir().join("dagent")).join("memory"));
                     tauri::async_runtime::spawn(async move {
                         let key = match get_qwen_api_key() {
