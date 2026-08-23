@@ -113,19 +113,6 @@ body {
   pointer-events: none;
 }
 
-/* 截图预览：全窗口覆盖，点击关闭 */
-.screen-shot {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100vw;
-  height: 100vh;
-  object-fit: contain;
-  background: rgba(0, 0, 0, 0.75);
-  cursor: pointer;
-  z-index: 50;
-}
-
 /* 调试面板（诊断信息，默认折叠为小徽章） */
 .debug-wrap {
   position: absolute;

@@ -283,7 +283,7 @@ function App() {
         for (let attempt = 0; attempt < 2 && !desc; attempt++) {
           try {
             const shotPath = await invoke<string>("screenshot");
-            setScreenShot(convertFileSrc(shotPath)); // 顺便显示截图
+            // 截图仅用于优香内部视觉理解，不显示给主人（主人不需要看到原始截图）
             desc = await invoke<string>("vlm_understand", {
               imagePath: shotPath,
               question: "请用一两句话简要描述屏幕上现在显示的内容",
@@ -521,9 +521,6 @@ function App() {
       scheduleCalmDown(1500); // 播放出错也尽快恢复平静
     }
   }
-
-  // ===== 截屏：Rust xcap → PNG → 前端预览 =====
-  const [screenShot, setScreenShot] = useState<string | null>(null);
 
   // ===== 语音识别：录音 → wav → Rust → SenseVoice → 文字 =====
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -1308,16 +1305,6 @@ function App() {
         </button>
         <button onClick={openChatLog} title="查看完整聊天记录">📜 记录</button>
       </div>
-      {/* 截图预览（点击关闭） */}
-      {screenShot && (
-        <img
-          src={screenShot}
-          className="screen-shot"
-          alt="截屏"
-          onClick={() => setScreenShot(null)}
-          title="点击关闭"
-        />
-      )}
       {status && <div className="tts-status">{status}</div>}
       {/* 操作确认弹窗（安全机制：优香操控电脑前征求同意） */}
       {pendingAction && (
