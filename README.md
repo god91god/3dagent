@@ -90,4 +90,4 @@ pnpm tauri build --no-bundle   # 产物: src-tauri/target/release/dagent.exe
 
 [GPL-3.0](LICENSE) © 2026 sb
 
-> 说明：本仓库不含 `config.json`（含 API key，已被 .gitignore 排除）；VRM 模型仅提交主力（`public/models/优香_new.vrm`），备份/备胎模型未提交。
+> 说明：本仓库不含 `config.json`（含 API key，已被 .gitignore 排除）；**VRM 模型不随仓库分发**（模型版权归原作者，仅限个人使用），如需运行请自行准备 VRM 1.0 模型放入 `public/models/`。

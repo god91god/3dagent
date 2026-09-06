@@ -16,7 +16,7 @@
 ├── src-tauri/           # Rust 后端（Tauri 2）
 │   └── src/             #   memory.rs / proactive.rs / vision.rs 等
 ├── tools/               # Python 脚本（TTS/ASR/A2F/CUA）
-├── public/models/       # VRM 模型（优香_new.vrm 已入库）
+├── public/models/       # VRM 模型（不随仓库分发，需自行获取）
 └── config.json          # 配置（含 API key，需用户创建，已 gitignore）
 ```
 
@@ -89,9 +89,9 @@ pip install sherpa-onnx                                     # 语音识别（可
 
 ```bash
 ls public/models/
-# 应看到：优香_new.vrm（主力模型，已入库）
+# 说明：VRM 模型不随仓库分发（版权归原作者）。目录可能为空。
 ```
-如果缺模型（例如用户 clone 时没拉到 LFS），告诉用户需要自行准备 VRM 1.0 模型放入 `public/models/`，并在 `src/App.tsx` 里确认加载路径。
+如果缺模型（正常情况），告诉用户：模型不公开分发，需自行向原作者获取 VRM 1.0 模型，或使用任何自己有权使用的 VRM 模型，放入 `public/models/`，然后在 `src/App.tsx` 里把加载路径改成实际文件名。
 
 ## 步骤 6：启动
 

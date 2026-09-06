@@ -29,10 +29,9 @@ config.json
 # 编译产物
 src-tauri/target/
 
-# 模型资产：只提交主力（优香_new.vrm），备份/备胎模型不入库（体积大）
+# 模型资产：全部 VRM 不入库（模型版权归原作者，不允许公开分发）
 public/models/*.vrm
-!public/models/优香_new.vrm
 
-# ����������Ƶ��TTS ��ɫ�����ã�
+# 本地试听音频（TTS 音色调试用）
 yuuka_voice_preview*.wav
 yuuka_voice_test*.mp3
